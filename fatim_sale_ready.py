@@ -21,7 +21,6 @@ fatim_codes = {
 
 # XPath expression to extract the currency rate
 x_dollar = '//*[@id="content"]/div/div/div/div[3]/div/table/tbody/tr[15]/td[5]'
-# x_euro = '//*[@id="content"]/div/div/div/div[3]/div/table/tbody/tr[16]/td[5]'
 
 
 def __rgb_set_fixed__(self, instance, value):
@@ -48,22 +47,15 @@ def parsing_currency():
 
         # Find the currency rate element using XPath
         dollar_element = tree.xpath(x_dollar)
-        # euro_element = tree.xpath(x_euro)
 
         # Check if the element was found
         if dollar_element:
             # Get the text content of the element
             dollar_rate = dollar_element[0].text
-            # euro_rate = euro_element[0].text
-
             dollar_rate = dollar_rate.replace(",", ".")
-            # euro_rate = euro_rate.replace(",", ".")
-            # dollar_rate = (float(dollar_rate) + markup_rub)*markup_percent
-            # euro_rate = (float(euro_rate) + markup_rub)*markup_percent
 
             # Print the currency rate
             print(f"USD to RUB currency rate: {dollar_rate}")
-            # print(f"USD to RUB currency rate: {euro_rate}")
             return float(dollar_rate)
         else:
             print("Currency rate element not found.")
@@ -110,23 +102,23 @@ def fatim_upd(fatim_worksheet, dollar_rate):
         for code, info in fatim_codes.items():
             if code in code_name:
                 dollar_rate_upd = (float(dollar_rate) + info[2])*info[3]
-                fatim_worksheet[f'L{row}'] = dollar_rate_upd
+                fatim_worksheet[f'L{row}'] = round(dollar_rate_upd, 3)
 
                 if 'rose' in flower_type:
-                    fatim_worksheet[f'I{row}'] = markup + info[1]
+                    fatim_worksheet[f'I{row}'] = round(markup + info[1], 3)
 
                 currency_rub = float(fatim_worksheet[f'L{row}'].value)
                 markup = float(fatim_worksheet[f'I{row}'].value)
 
                 new_sum = ((flower_price + markup) * flower_amount)
-                fatim_worksheet[f'K{row}'] = new_sum
+                fatim_worksheet[f'K{row}'] = round(new_sum, 3)
                 flower_usd = float(fatim_worksheet[f'K{row}'].value)
                 new_sum = new_sum * currency_rub
-                fatim_worksheet[f'M{row}'] = new_sum
+                fatim_worksheet[f'M{row}'] = round(new_sum, 3)
                 flower_rub = float(fatim_worksheet[f'M{row}'].value)
                 flower_sum[code][0] = flower_sum[code][0] + flower_rub
                 flower_sum[code][3] = flower_sum[code][3] + flower_usd
-                fatim_worksheet[f'J{row}'] = flower_price + markup
+                fatim_worksheet[f'J{row}'] = round(flower_price + markup, 3)
 
                 break
 
@@ -143,11 +135,11 @@ def fatim_upd(fatim_worksheet, dollar_rate):
 
         for code in fatim_codes.keys():
             if code in code_name:
-                fatim_worksheet[f'N{row}'] = flower_sum[code][2] * flower_rub
+                fatim_worksheet[f'N{row}'] = round(flower_sum[code][2] * flower_rub, 3)
                 truck_rub = float(fatim_worksheet[f'N{row}'].value)
-                fatim_worksheet[f'O{row}'] = truck_rub + flower_rub
+                fatim_worksheet[f'O{row}'] = round(truck_rub + flower_rub, 3)
                 total_rub = float(fatim_worksheet[f'O{row}'].value)
-                fatim_worksheet[f'P{row}'] = total_rub/flower_amount
+                fatim_worksheet[f'P{row}'] = round(total_rub/flower_amount, 3)
 
     total_sale = 0.0
 
@@ -158,6 +150,17 @@ def fatim_upd(fatim_worksheet, dollar_rate):
 
 
 def fatim_divide(fatim_worksheet, code, info):
+    column_name = {
+                   'A1': 'ПЛАНТАЦИЯ', 'B1': 'МАРКИРОВКА', 'C1': 'ФУЛЛ',
+                   'D1': 'ТИП', 'E1': 'СОРТ', 'F1': 'ДЛИНА', 'G1': 'КОЛ-ВО',
+                   'H1': 'ЦЕНА, USD', 'I1': 'НАЦЕНКА БРОКЕРА',
+                   'J1': 'ЦЕНА ИТОГО', 'K1': 'СУММА ЦВЕТОК, USD',
+                   'L1': 'КУРС USD', 'M1': 'СУММА ЦВЕТОК, РУБ',
+                   'N1': 'ТРАНСПОРТ, РУБ', 'O1': 'ИТОГО, РУБ',
+                   'P1': 'ЦЕНА, РУБ'
+    }
+
+    sum_total = ['K', 'M', 'N', 'O']
     total_rows = fatim_worksheet.max_row + 1
     new_wb = Workbook()
     new_sheet = new_wb.active
@@ -190,12 +193,19 @@ def fatim_divide(fatim_worksheet, code, info):
             finish = row
 
     if start and finish:
-        new_row = 1
+        sum_row = finish - start + 3
+        new_row = 2
         for row in range(start, finish + 1):
             for col in range(1, 17):
                 cell_value = fatim_worksheet.cell(row=row, column=col).value
                 new_sheet.cell(row=new_row, column=col, value=cell_value)
             new_row += 1
+
+        for cell, name in column_name.items():
+            new_sheet[cell] = name
+
+        for cell in sum_total:
+            new_sheet[f'{cell}{sum_row}'] = f'=SUM({cell}2:{cell}{sum_row-1})'
 
         new_wb.save(f'Fatim {info[0]}.xlsx')
 
